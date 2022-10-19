@@ -7,6 +7,7 @@
 #include <list>
 #include <type_traits>
 #include <algorithm>
+#include <vector>
 
 
 static size_t MAX_FILE_NAME = 100;
@@ -71,23 +72,14 @@ public:
 		return *this;
 	}
 
-	/*bool operator==(pixel_image& first, pixel_image& second)
-	{
-		if(std::addressof(first) == std::addressof(second))
-		{
-			return true;
-		}
-
-		if(first.b == second.b && first.g == second.g && first.r == second.r && first.a == second.a)
-			return true;
-
-		return false;
-	}*/
+	bool operator==(const pixel_image& other) {
+        return (this->r == other.r && this->g == other.g && this->b == other.b && this->a == other.a);
+    }
 
 
 	~pixel_image(){}
 
-	uint8_t 	r, g, b, a;   //a - transparency   // in fact you have bgr or bgra    r = b g = g b = r  or  r = b g = g b = r a = a
+	uint8_t 	b, g, r, a;   //a - transparency
 };
 
 
@@ -142,7 +134,7 @@ public:
 		if(!new_pixels)
 		{
 			std::cout << "Not enough memory\n";
-			exit(0);
+			return;
 		}
 
 		for(size_t i = 0; i < height; ++i)
@@ -155,7 +147,7 @@ public:
 				free(new_pixels);
 
 				std::cout << "Not enough memory\n";
-				exit(0);
+				return;
 			}
 		}
 
@@ -190,6 +182,69 @@ private:
 };
 
 
+class compression: public all_operations{
+public:
+	compression(){}
+
+	compression(size_t width, size_t height): new_width(width), new_height(height){}
+
+	void make(image* im) override
+	{
+		if(!im)
+			return;
+
+		pixel_image** new_pixels = (pixel_image**)malloc(sizeof(pixel_image*) * new_height);
+		if(!new_pixels)
+		{
+			std::cout << "Not enough memory\n";
+			return;
+		}
+
+		for(size_t i = 0; i < new_height; ++i)
+		{
+			new_pixels[i] = (pixel_image*)malloc(sizeof(pixel_image) * new_width);
+			if(!new_pixels[i])
+			{
+				for(size_t j = 0; j < i; ++j)
+					free(new_pixels[j]);
+				free(new_pixels);
+
+				std::cout << "Not enough memory\n";
+				return;
+			}
+		}
+
+		for(size_t i = 0; i < new_height; ++i)
+		{
+			for(size_t j = 0; j < new_width; ++j)
+			{
+				new_pixels[i][j] = im->pixels[(i * im->info_header.height) / new_height][(j * im->info_header.width) / new_width];
+			}
+		}
+
+		for(size_t i = 0; i < im->info_header.height; ++i)
+			free(im->pixels[i]);
+		free(im->pixels);
+
+		im->pixels = new_pixels;
+
+		int k_bytes_in_pix = im->info_header.bits_per_pixel / 8;
+		size_t sub_bytes = (im->info_header.height * im->info_header.width - new_width * new_height) * k_bytes_in_pix;
+		
+		im->info_header.height = new_height;
+		im->info_header.width = new_width;
+		im->info_header.image_size -= sub_bytes;
+		im->file_header.file_size -= sub_bytes;
+	}
+
+	~compression(){}
+
+private:
+	size_t new_width;
+	size_t new_height;
+};
+
+
 class replace_color: public all_operations{
 public:
 	replace_color(){}
@@ -216,24 +271,13 @@ public:
 			return;
 		}
 
-		if(im->info_header.bits_per_pixel == 32)
-		{
-			for(int i = 0; i < im->info_header.height; i++)
-			    for(int j = 0; j < im->info_header.width; j++)
-			        if(im->pixels[i][j].r == old_color->r && im->pixels[i][j].g == old_color->g && im->pixels[i][j].b == old_color->b  && im->pixels[i][j].a == old_color->a)
-		                im->pixels[i][j] = *new_color;
-		}
-		else
-		{
+		if(im->info_header.bits_per_pixel != 32)
 			new_color->a = 0;
 
-			for(int i = 0; i < im->info_header.height; i++)
-		        for(int j = 0; j < im->info_header.width; j++)
-		            if(im->pixels[i][j].r == old_color->r || im->pixels[i][j].g == old_color->g || im->pixels[i][j].b == old_color->b)
-		            {
-		                im->pixels[i][j] = *new_color;
-		            }
-		}
+		for(int i = 0; i < im->info_header.height; i++)
+		    for(int j = 0; j < im->info_header.width; j++)
+		        if(im->pixels[i][j] == *old_color)
+	                im->pixels[i][j] = *new_color;
 	}
 
 
@@ -280,6 +324,24 @@ public:
 	~improve_clarity(){}
 };
 
+class select_edge: public all_operations{
+public:
+	select_edge(){}
+
+	void make(image* im);
+
+	~select_edge(){}
+};
+
+class gaus: public all_operations{
+public:
+	gaus(){}
+
+	void make(image* im);
+
+	~gaus(){}
+};
+
 class less_noise: public all_operations{
 public:
 	less_noise(){}
@@ -292,12 +354,18 @@ public:
 
 image* load_image(const char* file_name);
 void make_picture(image* save_image, const char* output_file);
+
 //void replace_color(pixel_image** pixels, pixel_image& old_color, pixel_image& new_color, uint32_t width, uint32_t height, uint16_t bits_per_pixel) ;
 //void improve_clarity(pixel_image** pixels, uint32_t width, uint32_t height, uint16_t bits_per_pixel);
 //void negative(pixel_image** pixels, uint32_t width, uint32_t height);
+//void grey_filter(image* im);
+
+pixel_image** create_pixels(size_t width, size_t height);
+pixel_image** delete_pixels(pixel_image** pixels, size_t height);
 image* delete_all(image* im);
+
 void read_comands(image* im);
 void read_flags(image* im, int argc, char* argv[]);
 void use_filters(image* im, std::list <all_operations*> comands_order);
-//void grey_filter(image* im);
+
 void docs();
