@@ -230,7 +230,7 @@ public:
 
 		int k_bytes_in_pix = im->info_header.bits_per_pixel / 8;
 		size_t sub_bytes = (im->info_header.height * im->info_header.width - new_width * new_height) * k_bytes_in_pix;
-		
+
 		im->info_header.height = new_height;
 		im->info_header.width = new_width;
 		im->info_header.image_size -= sub_bytes;
@@ -367,5 +367,6 @@ image* delete_all(image* im);
 void read_comands(image* im);
 void read_flags(image* im, int argc, char* argv[]);
 void use_filters(image* im, std::list <all_operations*> comands_order);
+void delete_filters(std::list <all_operations*>* comands_order);
 
 void docs();

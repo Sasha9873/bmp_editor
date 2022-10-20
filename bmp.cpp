@@ -48,6 +48,20 @@ image* load_image(const char* file_name)
 
 void make_picture(image* save_image, const char* output_file)
 {
+	if(!save_image)
+	{
+		std::cout << "You did not select file to change\n";
+		docs();
+		return;
+	}
+
+	if(!output_file)
+	{
+		std::cout << "You have not file to save a change picture in\n";
+		docs();
+		return;
+	}
+
 	FILE* save_file = fopen(output_file, "wb");
 
 	fwrite(&save_image->file_header, sizeof(save_image->file_header), 1, save_file);
@@ -83,7 +97,7 @@ pixel_image** create_pixels(size_t width, size_t height)
 	}
 
 
-	std::cout << height << " " <<  width << std::endl;
+	//std::cout << height << " " <<  width << std::endl;
 	for(size_t i = 0; i < height; ++i)
 	{
 		pixels[i] = (pixel_image*)malloc((width) * sizeof(pixel_image));
@@ -146,7 +160,7 @@ void read_comands(image* im)
     {
     	std::cin >> comand;
     	//std::cout << comand << std::endl;
-    	
+
     	if(!strcmp(comand, "stop"))
     	{
 			im = delete_all(im);
@@ -168,6 +182,10 @@ void read_comands(image* im)
 		        std::cout << "Could not load image\n";
 		        break;
 		    }
+
+		    delete_filters(&comands_order);
+		   /* while(comands_order.size())
+				comands_order.pop_back();*/
     	}
 
     	else if(!strcmp(comand, "replace"))
@@ -308,6 +326,8 @@ void read_comands(image* im)
         {
         	use_filters(im, comands_order);
             make_picture(im, "new_image.bmp");
+
+            delete_filters(&comands_order);
         }
 
         else if(!strcmp(comand, "save_as"))
@@ -319,6 +339,8 @@ void read_comands(image* im)
             std::cin >> new_file_name;
             use_filters(im, comands_order);
             make_picture(im, new_file_name);
+
+            delete_filters(&comands_order);
         }
 
         else if(!strcmp(comand, "delete_prev"))
@@ -488,6 +510,14 @@ void read_flags(image* im, int argc, char* argv[])
     im = delete_all(im);
 }
 
+
+void delete_filters(std::list <all_operations*>* comands_order)
+{
+	while(comands_order->size())
+		comands_order->pop_back();
+	//std::cout << comands_order->size() << "\n";
+}
+
 void use_filters(image* im, std::list <all_operations*> comands_order)
 {
 	if(!im)
@@ -496,7 +526,7 @@ void use_filters(image* im, std::list <all_operations*> comands_order)
 		docs();
 		return;
 	}
-
+	
 	while(comands_order.size())
 	{
 		comands_order.front()->make(im);
@@ -509,9 +539,12 @@ void docs()
 	//--help -h
 	std::cout << "--help -h flags to see docs\n";
 
-	std::cout << "You shold write name of the program than file you want to save to than flags(filters yo want to use)";
-	std::cout << " or name of the program and than --help(-h)\n";
+	std::cout << "You shold write name of the program than file you want to save than flags(filters yo want to use)";
+	std::cout << " or name of the program and than --help(-h). If you write only name of the file after the name of the"; 
+	std::cout << " program or just name of the program you will start editor mode.\n";
 
+	std::cout << "After save and save_as all fiters delete but if you save this file once again(witout using edit before) ";
+	std::cout << "you will have previous filters\n";
 
 	std::cout << "Flags(filters) you can use\n";
 
@@ -544,6 +577,7 @@ void docs()
 	std::cout << "save_as arg(name of the file to save) to save photo in file you wrote\n";
 	std::cout << "stop to stop program\n\n";
 
+	std::cout << "edit arg(name of the file) to edit file you have written\n";
 	std::cout << "ls comand to see files you have in current directory\n";
 
 	std::cout << "help comand to see docs\n";
